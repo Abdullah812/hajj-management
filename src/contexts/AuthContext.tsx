@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Session, User } from '@supabase/supabase-js'
+import { useNavigate } from 'react-router-dom'
 
 type UserData = {
   id: string
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   async function fetchUserData(userId: string) {
     try {
@@ -75,10 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
-  async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    // مسح أي بيانات محلية
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   if (loading) {
     return (
@@ -89,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, userData, session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, userData, session, loading, signIn, signOut: handleLogout }}>
       {children}
     </AuthContext.Provider>
   )
