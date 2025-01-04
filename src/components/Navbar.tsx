@@ -311,7 +311,7 @@ export function Navbar() {
         </div>
 
         <Transition
-          show={isMobileMenuOpen}
+          show={isMobileMenuOpen && !!user}
           enter="transition-all ease-out duration-300"
           enterFrom="opacity-0 -translate-y-2"
           enterTo="opacity-100 translate-y-0"
