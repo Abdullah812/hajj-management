@@ -85,6 +85,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  useEffect(() => {
+    // مراقبة حالة المصادقة
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _session) => {
+      if (event === 'SIGNED_OUT') {
+        // تسجيل الخروج من جميع الأجهزة
+        setUser(null);
+        localStorage.removeItem('user');
+        navigate('/login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
