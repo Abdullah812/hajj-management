@@ -177,24 +177,20 @@ export function Stages() {
             const endDate = new Date(stage.end_date)
             
             let stageStatus = ''
-            let statusColor = ''
             let timeRemaining = ''
 
             if (now < startDate) {
               stageStatus = 'قادمة'
-              statusColor = 'bg-blue-100 text-blue-800'
               const diff = startDate.getTime() - now.getTime()
               const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
               timeRemaining = `تبدأ خلال ${days} يوم`
             } else if (now >= startDate && now <= endDate) {
               stageStatus = 'نشطة'
-              statusColor = 'bg-green-100 text-green-800'
               const diff = endDate.getTime() - now.getTime()
               const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
               timeRemaining = `متبقي ${days} يوم`
             } else {
               stageStatus = 'منتهية'
-              statusColor = 'bg-gray-100 text-gray-800'
               timeRemaining = 'انتهت المرحلة'
             }
 

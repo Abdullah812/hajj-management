@@ -1,17 +1,15 @@
-import express from 'express'
-import cors from 'cors'
-import { createClient } from '@supabase/supabase-js'
+/*import express from 'express'
 
-const app = express()
-app.use(cors())
-app.use(express.json())
+import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-app.post('/api/approve-user', async (req, res) => {
+const router = express.Router()
+
+router.post('/', async (req, res) => {
   try {
     const { userId } = req.body
 
@@ -72,7 +70,4 @@ app.post('/api/approve-user', async (req, res) => {
   }
 })
 
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-}) 
+export default router */
