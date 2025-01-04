@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Link, NavLink } from 'react-router-dom'
 import { 
   ChartBarIcon, 
-  ArrowRightStartOnRectangleIcon,
+  ArrowRightOnRectangleIcon,
   UserCircleIcon,
   Cog6ToothIcon,
   Bars3Icon,
@@ -267,7 +267,7 @@ export function Navbar() {
                             transition-all duration-200
                             hover:bg-red-50 dark:hover:bg-red-900/20`}
                         >
-                          <ArrowRightStartOnRectangleIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
+                          <ArrowRightOnRectangleIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                           {isLoading ? 'جاري تسجيل الخروج...' : 'تسجيل الخروج'}
                         </button>
                       )}
