@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Noto Sans Arabic', system-ui, sans-serif;
+  }
+  
+  body {
+    background-color: #f9fafb;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    color: white;
+    background-color: #0284c7;
+  }
+  .btn:hover {
+    background-color: #0369a1;
+  }
+  .btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0ea5e9;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    color: #374151;
+    background-color: white;
+  }
+  .btn-secondary:hover {
+    background-color: #f9fafb;
+  }
+  .btn-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0ea5e9;
+  }
+
+  .input {
+    display: block;
+    width: 100%;
+    border-radius: 0.375rem;
+    border-color: #d1d5db;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+  .input:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 1px #0ea5e9;
+  }
+
+  .label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .card {
+    background-color: white;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #111827;
+    margin-bottom: 1rem;
+  }
+}
+
+/* RTL Support */
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
+}
+
+/* Loading Animation */
+.loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e5e7eb;
+}
+
+/* Form Validation */
+.input-error {
+  border-color: #fca5a5;
+  color: #7f1d1d;
+  &::placeholder { color: #fca5a5; }
+  &:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 1px #ef4444;
+  }
+}
+
+.error-message {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #dc2626;
+}
+
+/* Transitions */
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}
+
+.fade-exit {
+  opacity: 1;
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
