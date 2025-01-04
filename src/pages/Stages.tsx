@@ -170,7 +170,7 @@ export function Stages() {
           <p className="text-gray-500">لا توجد مراحل مضافة</p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stages.map((stage) => {
             const now = new Date()
             const startDate = new Date(stage.start_date)

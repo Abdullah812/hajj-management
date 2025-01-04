@@ -186,7 +186,7 @@ export function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatsCard
               title="إجمالي الحجاج"
               value={stats.totalPilgrims}
@@ -298,8 +298,8 @@ export function Dashboard() {
                     <ChevronLeftIcon className="h-4 w-4 mr-1" />
                   </a>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <div className="overflow-x-auto rounded-lg shadow">
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead>
                       <tr className="bg-gray-50 dark:bg-gray-700">
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الاسم</th>
