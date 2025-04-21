@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { PushNotificationSubscriber } from '../components/PushNotificationSubscriber'
 
 export function Settings() {
   const { user } = useAuth()
@@ -149,43 +150,7 @@ export function Settings() {
           <h2 className="text-lg font-medium text-gray-900 mb-4">
             إعدادات الإشعارات
           </h2>
-          <form onSubmit={handleNotificationSettings} className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="email-notifications"
-                  checked={notifications.email}
-                  onChange={(e) => setNotifications({ ...notifications, email: e.target.checked })}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label htmlFor="email-notifications" className="mr-2 block text-sm text-gray-700">
-                  إشعارات البريد الإلكتروني
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="browser-notifications"
-                  checked={notifications.browser}
-                  onChange={(e) => setNotifications({ ...notifications, browser: e.target.checked })}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label htmlFor="browser-notifications" className="mr-2 block text-sm text-gray-700">
-                  إشعارات المتصفح
-                </label>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                {loading ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
-              </button>
-            </div>
-          </form>
+          <PushNotificationSubscriber />
         </div>
       </div>
     </div>

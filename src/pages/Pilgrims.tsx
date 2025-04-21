@@ -64,6 +64,20 @@ export function Pilgrims() {
     }
   }
 
+  const getRandomColor = (nationality: string) => {
+    const colors = [
+      'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
+      'bg-green-50 text-green-700 dark:bg-green-900/50 dark:text-green-400',
+      'bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400',
+      'bg-pink-50 text-pink-700 dark:bg-pink-900/50 dark:text-pink-400',
+      'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400',
+      'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400'
+    ];
+    
+    const sum = nationality.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[sum % colors.length];
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-8">
@@ -95,13 +109,6 @@ export function Pilgrims() {
           <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">عدد المجموعات</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
             {groups.length.toLocaleString('ar-SA')}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-100 dark:border-gray-700">
-          <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">متوسط عدد الحجاج</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.round(totalPilgrims / (groups.length || 1)).toLocaleString('ar-SA')}
           </div>
         </div>
       </div>
@@ -169,23 +176,23 @@ export function Pilgrims() {
           .map(group => (
             <div 
               key={group.id} 
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700"
+              className={`${getRandomColor(group.nationality)} rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700`}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                  <h3 className="text-xl font-bold mb-1">
                     {group.nationality}
                   </h3>
-                  <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
+                  <div className="flex items-center text-sm opacity-75">
                     <CalendarIcon className="h-4 w-4 ml-1" />
                     {new Date(group.created_at).toLocaleDateString('ar-SA')}
                   </div>
                 </div>
-                <div className="text-center bg-primary-50 dark:bg-primary-900/50 rounded-lg p-3">
-                  <div className="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-1">
+                <div className="text-center bg-white/50 dark:bg-black/10 backdrop-blur-sm rounded-lg p-3">
+                  <div className="text-3xl font-bold mb-1">
                     {group.count.toLocaleString('ar-SA')}
                   </div>
-                  <div className="text-xs text-primary-600 dark:text-primary-400">حاج</div>
+                  <div className="text-xs">حاج</div>
                 </div>
               </div>
 

@@ -111,7 +111,7 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
           email_confirm: true,
           user_metadata: {
             full_name: fullName,
-            role
+            role: 'staff'
           }
         })
 
@@ -123,7 +123,7 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
             .update({
               email,
               full_name: fullName,
-              role,
+              role: 'staff',
               center_id: centerId ? parseInt(centerId) : null
             })
             .eq('id', userData.user.id)
@@ -230,17 +230,14 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
               </select>
             </div>
 
-            {role === 'manager' && (
+            {(role === 'manager' || role === 'staff') && (
               <div>
-                <label htmlFor="centerId" className="block text-sm font-medium text-gray-700">
-                  المركز
-                </label>
+                <label htmlFor="center">المركز</label>
                 <select
-                  id="centerId"
+                  id="center"
                   value={centerId}
                   onChange={(e) => setCenterId(e.target.value)}
-                  className="mt-1 input"
-                  disabled={loading}
+                  required
                 >
                   <option value="">اختر المركز</option>
                   {centers.map((center) => (

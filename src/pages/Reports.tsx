@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
   DocumentChartBarIcon, 
@@ -16,90 +16,327 @@ import {
   Legend,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  ResponsiveContainer
 } from 'recharts'
+import { Table } from '../components/Table'
+import { toast } from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
+import { useUser } from '../contexts/AuthContext'
+import { ExportPDFButton } from '../components/ReportPDF'
 
-type ReportType = 'pilgrims' | 'centers' | 'stages'
+type ReportType = 'pilgrim_groups' | 'centers' | 'stages'
 type DateRange = 'today' | 'week' | 'month' | 'custom'
-type StatCard = {
-  title: string
-  value: number | string
-  change?: number
-  changeType?: 'increase' | 'decrease'
+
+// Types
+interface SavedReport {
+  id: string;
+  name: string;
+  type: ReportType;
+  filters: any;
+  dateRange: DateRange;
+  startDate?: string;
+  endDate?: string;
 }
 
+interface ScheduledReport {
+  id: string;
+  reportType: ReportType;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  recipients: string[];
+  lastSent?: string;
+}
+
+interface ChartOptions {
+  showValues: boolean;
+  showPercentages: boolean;
+  orientation: 'vertical' | 'horizontal';
+  colorScheme: 'default' | 'blue' | 'green' | 'warm';
+}
+
+interface PilgrimGroup {
+  id: number;
+  name: string;
+  status: string;
+  created_at: string;
+  current_pilgrims: number;
+  departed_count: number;
+  start_date: string;
+  end_date: string;
+  start_time: string;
+  end_time: string;
+  departed_pilgrims: number;
+  required_departures: number;
+  allocated_departures: number;
+  pilgrim_group_id?: number;
+  receive_from_stage_id?: number;
+  area_id?: number;
+  nationality: string;
+  count: number;
+  center_id: string;
+}
+
+interface Center {
+  id: string;
+  name: string;
+  location: string;
+  default_capacity: number;
+  current_count: number;
+  status: string;
+  created_at: string;
+  departed_pilgrims: number;
+}
+
+interface Stage {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  current_pilgrims: number;
+  status: string;
+  created_at: string;
+  start_time: string;
+  end_time: string;
+  departed_pilgrims: number;
+  required_departures: number;
+  allocated_departures: number;
+}
+
+// إضافة دالة تنسيق التاريخ في بداية الملف
+const formatDate = (date: string) => {
+  try {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return date;
+  }
+};
+
 export function Reports() {
-  const [reportType, setReportType] = useState<ReportType>('pilgrims')
+  const { t } = useTranslation();
+  useUser();
+  const [reportType, setReportType] = useState<ReportType>('pilgrim_groups')
   const [dateRange, setDateRange] = useState<DateRange>('week')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any[]>([])
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
-  const [stats, setStats] = useState<StatCard[]>([])
+  const COLORS = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6'];
+  const [stats, setStats] = useState<Array<{ title: string; value: string | number }>>([]);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    sortBy: 'created_at',
+    sortOrder: 'desc' as 'asc' | 'desc'
+  });
+  
+  const [] = useState(false);
+  const [] = useState<SavedReport | null>(null);
+  const [] = useState<ScheduledReport[]>([]);
+  const [] = useState<ChartOptions>({
+    showValues: true,
+    showPercentages: true,
+    orientation: 'vertical',
+    colorScheme: 'default'
+  });
+
+  const memoizedChartData = useMemo(() => prepareChartData(), [data, reportType]);
+
+  const renderChart = () => {
+    if (!data.length) return null;
+    
+    const commonProps = {
+      data: memoizedChartData,
+      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+    };
+
+    return chartType === 'bar' ? (
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart {...commonProps}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis allowDecimals={false} />
+          <Tooltip 
+            formatter={(value: number) => value.toLocaleString('ar-SA')}
+            labelFormatter={(label) => String(label)}
+          />
+          <Legend />
+          <Bar dataKey="value" name="العدد">
+            {memoizedChartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    ) : (
+      <ResponsiveContainer width="100%" height={400}>
+        <PieChart {...commonProps}>
+          <Pie
+            data={memoizedChartData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, value, percent }) => {
+              const displayValue = value.toLocaleString('ar-SA');
+              const displayPercent = (percent * 100).toFixed(0);
+              return `${name} (${displayValue} - ${displayPercent}%)`;
+            }}
+            outerRadius={160}
+            dataKey="value"
+            nameKey="name"
+          >
+            {memoizedChartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value: number) => value.toLocaleString('ar-SA')}
+            labelFormatter={(label) => String(label)}
+          />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  };
 
   async function generateReport() {
-    setLoading(true)
+    setLoading(true);
     try {
-      let queryBuilder = supabase.from(reportType)
-      let query
-
-      // إضافة الجداول المرتبطة حسب نوع التقرير
-      switch (reportType) {
-        case 'pilgrims':
-          query = queryBuilder.select(`
-            *,
-            center:centers(name),
-            stage:stages(name)
-          `)
-          break
-        case 'centers':
-          query = queryBuilder.select(`
-            *,
-            manager:profiles(full_name)
-          `)
-          break
-        case 'stages':
-          query = queryBuilder.select('*')
-          break
-      }
-
+      let query = supabase.from(reportType).select() as any;
+      
       // إضافة فلتر التاريخ
-      let fromDate = new Date()
-      switch (dateRange) {
-        case 'today':
-          fromDate = new Date()
-          fromDate.setHours(0, 0, 0, 0)
-          break
-        case 'week':
-          fromDate.setDate(fromDate.getDate() - 7)
-          break
-        case 'month':
-          fromDate.setMonth(fromDate.getMonth() - 1)
-          break
-        case 'custom':
-          if (startDate && endDate) {
-            query = query
-              .gte('created_at', startDate)
-              .lte('created_at', endDate)
-          }
-          break
-      }
-
       if (dateRange !== 'custom') {
-        query = query.gte('created_at', fromDate.toISOString())
+        const now = new Date();
+        let startDateTime = new Date();
+        
+        switch(dateRange) {
+          case 'today':
+            startDateTime.setHours(0,0,0,0);
+            break;
+          case 'week':
+            startDateTime.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            startDateTime.setMonth(now.getMonth() - 1);
+            break;
+        }
+        
+        query = query.gte('created_at', startDateTime.toISOString());
+      } else if (startDate && endDate) {
+        query = query
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`);
+      }
+      
+      // إضافة فلتر الحالة
+      if (filters.status !== 'all') {
+        query = query.eq('status', filters.status);
+      }
+      
+      // إضافة الترتيب
+      query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' });
+
+      if (reportType === 'pilgrim_groups') {
+        query = query.select(`
+          id,
+          nationality,
+          count,
+          created_at,
+          status,
+          center_id,
+          departed_count
+        `) as any;
+      } else if (reportType === 'centers') {
+        query = query.select(`
+          id,
+          name,
+          location,
+          default_capacity,
+          current_count,
+          status,
+          created_at,
+          stage_id,
+          departed_pilgrims
+        `) as any;
+      } else if (reportType === 'stages') {
+        query = query.select(`
+          id,
+          name,
+          start_date,
+          end_date,
+          current_pilgrims,
+          status,
+          created_at,
+          start_time,
+          end_time,
+          departed_pilgrims,
+          required_departures,
+          allocated_departures
+        `).order(filters.sortBy, { ascending: filters.sortOrder === 'asc' });
       }
 
-      const { data, error } = await query
+      const { data, error } = await query;
 
-      if (error) throw error
-      setData(data || [])
+      if (error) throw error;
+      if (!data) throw new Error('No data returned');
+
+      const arabicData = data.map((item: Record<string, any>) => {
+        if (reportType === 'pilgrim_groups') {
+          const pilgrimItem = item as unknown as PilgrimGroup;
+          return {
+            'المعرف': pilgrimItem.id,
+            'الجنسية': pilgrimItem.nationality,
+            'العدد': pilgrimItem.count?.toLocaleString('ar-SA') || '0',
+            'الحالة': pilgrimItem.status === 'active' ? 'نشط' : 'غير نشط',
+            'معرف المركز': pilgrimItem.center_id,
+            'عدد المغادرين': pilgrimItem.departed_count?.toLocaleString('ar-SA') || '0',
+            'تاريخ التسجيل': formatDate(pilgrimItem.created_at)
+          };
+        } else if (reportType === 'centers') {
+          const centerItem = item as unknown as Center;
+          return {
+            'المعرف': centerItem.id,
+            'الاسم': centerItem.name,
+            'الموقع': centerItem.location,
+            'السعة': centerItem.default_capacity?.toLocaleString('ar-SA') || '0',
+            'العدد الحالي': centerItem.current_count?.toLocaleString('ar-SA') || '0',
+            'الحالة': centerItem.status === 'active' ? 'نشط' : 'غير نشط',
+            'المغادرون': centerItem.departed_pilgrims?.toLocaleString('ar-SA') || '0',
+            'تاريخ الإنشاء': new Date(centerItem.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            })
+          };
+        } else {
+          const stageItem = item as unknown as Stage;
+          return {
+            'المعرف': stageItem.id,
+            'اسم المرحلة': stageItem.name,
+            'تاريخ البداية': new Date(stageItem.start_date).toLocaleDateString('ar-SA'),
+            'تاريخ النهاية': new Date(stageItem.end_date).toLocaleDateString('ar-SA'),
+            'وقت البداية': stageItem.start_time,
+            'وقت النهاية': stageItem.end_time,
+            'عدد الحجاج الحالي': stageItem.current_pilgrims?.toLocaleString('ar-SA') || '0',
+            'عدد المغادرين': stageItem.departed_pilgrims?.toLocaleString('ar-SA') || '0',
+            'المغادرات المطلوبة': stageItem.required_departures?.toLocaleString('ar-SA') || '0',
+            'المغادرات المجدولة': stageItem.allocated_departures?.toLocaleString('ar-SA') || '0',
+            'الحالة': stageItem.status === 'active' ? 'نشط' : 'غير نشط',
+            'تاريخ الإنشاء': new Date(stageItem.created_at).toLocaleDateString('ar-SA')
+          };
+        }
+      });
+
+      setData(arabicData || []);
     } catch (error) {
-      console.error('Error generating report:', error)
-      alert('حدث خطأ أثناء إنشاء التقرير')
+      console.error('Error details:', error);
+      toast.error('حدث خطأ أثناء إنشاء التقرير');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -132,129 +369,114 @@ export function Reports() {
 
   // دالة لتحضير بيانات الرسم البياني
   function prepareChartData() {
-    if (!data.length) return []
+    if (!data.length) return [];
 
     switch (reportType) {
-      case 'pilgrims':
-        // تجميع الحجاج حسب المركز
+      case 'pilgrim_groups':
         return Object.entries(
           data.reduce((acc: any, curr) => {
-            const centerName = curr.center?.name || 'غير محدد'
-            acc[centerName] = (acc[centerName] || 0) + 1
-            return acc
+            const status = curr['الحالة'] || 'غير محدد';
+            const countStr = String(curr['عدد الحجاج']).replace(/[^\d]/g, '');
+            const count = countStr === '' ? 0 : parseInt(countStr);
+            acc[status] = (acc[status] || 0) + count;
+            return acc;
           }, {})
-        ).map(([name, value]) => ({ name, value }))
+        ).map(([name, value]) => ({
+          name: String(name),
+          value: value || 0,
+          fill: COLORS[Math.floor(Math.random() * COLORS.length)]
+        }));
 
       case 'centers':
-        // تجميع المراكز حسب الحالة
         return Object.entries(
           data.reduce((acc: any, curr) => {
-            acc[curr.status] = (acc[curr.status] || 0) + 1
-            return acc
+            const status = curr['الحالة'] || 'غير محدد';
+            const countStr = String(curr['العدد الحالي']).replace(/[^\d]/g, '');
+            const count = countStr === '' ? 0 : parseInt(countStr);
+            acc[status] = (acc[status] || 0) + count;
+            return acc;
           }, {})
-        ).map(([name, value]) => ({ 
-          name: name === 'active' ? 'نشط' : 'غير نشط', 
-          value 
-        }))
+        ).map(([name, value]) => ({
+          name: String(name),
+          value: value || 0,
+          fill: COLORS[Math.floor(Math.random() * COLORS.length)]
+        }));
 
       case 'stages':
-        // تجميع المراحل حسب عدد الحجاج
-        return data.map(stage => ({
-          name: stage.name,
-          value: stage.pilgrims_count || 0
-        }))
+        return data.map((stage, index) => {
+          const countStr = String(stage['عدد الحجاج الحالي']).replace(/[^\d]/g, '');
+          const count = countStr === '' ? 0 : parseInt(countStr);
+          return {
+            name: String(stage['اسم المرحلة'] || 'غير محدد'),
+            value: count || 0,
+            fill: COLORS[index % COLORS.length]
+          };
+        });
 
       default:
-        return []
+        return [];
     }
   }
 
   // دالة لحساب الإحصائيات
   async function calculateStats() {
     try {
-      switch (reportType) {
-        case 'pilgrims': {
-          const { count: totalCount } = await supabase
-            .from('pilgrims')
-            .select('*', { count: 'exact', head: true })
-
-          const { count: todayCount } = await supabase
-            .from('pilgrims')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', new Date().setHours(0,0,0,0))
-
-          const { data: centerStats } = await supabase
-            .from('centers')
-            .select('id, capacity, pilgrims!inner(id)')
-
-          const totalCapacity = centerStats?.reduce((sum, center) => sum + (center.capacity || 0), 0) || 0
-          const totalOccupied = centerStats?.reduce((sum, center) => sum + (center.pilgrims?.length || 0), 0) || 0
-          const occupancyRate = totalCapacity ? ((totalOccupied / totalCapacity) * 100).toFixed(1) : 0
-
-          setStats([
-            {
-              title: 'إجمالي الحجاج',
-              value: totalCount || 0,
-              change: todayCount || 0,
-              changeType: 'increase'
-            },
-            {
-              title: 'نسبة الإشغال',
-              value: `${occupancyRate}%`,
-              changeType: Number(occupancyRate) > 80 ? 'increase' : 'decrease'
-            }
-          ])
-          break
-        }
+      if (!reportType) return;
+      
+      const { data: rawData, error } = await supabase
+        .from(reportType)
+        .select('*');
         
-        case 'centers': {
-          const { data: totalCenters } = await supabase
-            .from('centers')
-            .select('id, status', { count: 'exact' })
+      if (error) throw error;
+      if (!rawData) return;
 
-          const activeCenters = totalCenters?.filter(c => c.status === 'active').length || 0
-          
-          setStats([
-            {
-              title: 'إجمالي المراكز',
-              value: totalCenters?.length || 0
-            },
-            {
-              title: 'المراكز النشطة',
-              value: activeCenters,
-              change: totalCenters?.length ? 
-                Number(((activeCenters / totalCenters.length) * 100).toFixed(0)) : 0,
-              changeType: 'increase'
-            }
-          ])
-          break
-        }
+      let newStats: Array<{ title: string; value: string | number }> = [];
+      
+      switch (reportType) {
+        case 'centers':
+          const totalCenters = rawData?.length || 0;
+          const activeCenters = rawData?.filter(c => c.status === 'active').length || 0;
+          const totalCapacity = rawData?.reduce((sum, center) => sum + (center.default_capacity || 0), 0) || 0;
+          const totalOccupied = rawData?.reduce((sum, center) => sum + (center.current_count || 0), 0) || 0;
+          const occupancyRate = totalCapacity ? ((totalOccupied / totalCapacity) * 100).toFixed(1) : '0';
 
-        case 'stages': {
-          const { data: stagesData } = await supabase
-            .from('stages')
-            .select('id, pilgrims!inner(id)')
+          newStats = [
+            { title: 'إجمالي المراكز', value: totalCenters },
+            { title: 'المراكز النشطة', value: activeCenters },
+            { title: 'نسبة الإشغال', value: `${occupancyRate}%` }
+          ];
+          break;
+        case 'pilgrim_groups':
+          const totalGroups = rawData?.length || 0;
+          const totalPilgrims = rawData?.reduce((sum, group) => sum + (group.current_pilgrims || 0), 0) || 0;
+          const departedPilgrims = rawData?.reduce((sum, group) => sum + (group.departed_count || 0), 0) || 0;
+          const departureRate = totalPilgrims ? ((departedPilgrims / totalPilgrims) * 100).toFixed(1) : '0';
 
-          const completedStages = stagesData?.filter(s => s.pilgrims?.length > 0).length || 0
-          
-          setStats([
-            {
-              title: 'إجمالي المراحل',
-              value: stagesData?.length || 0
-            },
-            {
-              title: 'المراحل المكتملة',
-              value: completedStages,
-              change: stagesData?.length ? 
-                Number(((completedStages / stagesData.length) * 100).toFixed(0)) : 0,
-              changeType: 'increase'
-            }
-          ])
-          break
-        }
+          newStats = [
+            { title: 'إجمالي المجموعات', value: totalGroups },
+            { title: 'إجمالي الحجاج', value: totalPilgrims },
+            { title: 'نسبة المغادرة', value: `${departureRate}%` }
+          ];
+          break;
+        case 'stages':
+          const totalStages = rawData?.length || 0;
+          const activeStages = rawData?.filter(s => s.status === 'active').length || 0;
+          const currentPilgrims = rawData?.reduce((sum, stage) => sum + (stage.current_pilgrims || 0), 0) || 0;
+          const totalDepartedPilgrims = rawData?.reduce((sum, stage) => sum + (stage.departed_pilgrims || 0), 0) || 0;
+          const completionRate = ((totalDepartedPilgrims / (currentPilgrims + totalDepartedPilgrims)) * 100).toFixed(1);
+
+          newStats = [
+            { title: 'إجمالي المراحل', value: totalStages },
+            { title: 'المراحل النشطة', value: activeStages },
+            { title: 'نسبة الإنجاز', value: `${completionRate}%` }
+          ];
+          break;
       }
+      
+      setStats(newStats);
     } catch (error) {
-      console.error('Error calculating stats:', error)
+      console.error('Error calculating stats:', error);
+      toast.error('حدث خطأ أثناء حساب الإحصائيات');
     }
   }
 
@@ -263,17 +485,81 @@ export function Reports() {
     calculateStats()
   }, [reportType])
 
+  // وظائف جديدة
+
+  // إضافة التحديث المباشر
+  useEffect(() => {
+    const channel = supabase
+      .channel('reports')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: reportType 
+      }, () => {
+        generateReport();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [reportType]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">التقارير</h1>
-        <button
-          onClick={exportToExcel}
-          className="btn btn-secondary"
-          disabled={!data.length}
-        >
-          تصدير إلى Excel
-        </button>
+        <div className="flex justify-between items-center mb-6">
+          <div className="space-x-2 rtl:space-x-reverse">
+            <button
+              onClick={exportToExcel}
+              className="btn btn-secondary"
+              disabled={!data.length}
+            >
+              تصدير Excel
+            </button>
+            {data.length > 0 && stats.length > 0 && (
+              <ExportPDFButton 
+                data={data} 
+                reportType={reportType} 
+                stats={stats} 
+              />
+            )}
+          </div>
+          
+          <div className="flex gap-4">
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="input"
+            >
+              <option value="all">جميع الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+            </select>
+            
+            <select
+              value={filters.sortBy}
+              onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+              className="input"
+            >
+              <option value="created_at">تاريخ الإنشاء</option>
+              {reportType === 'pilgrim_groups' && <option value="current_pilgrims">عدد الحجاج الحالي</option>}
+              {reportType === 'centers' && <option value="current_count">العدد الحالي</option>}
+              {reportType === 'stages' && <option value="current_pilgrims">عدد الحجاج الحالي</option>}
+            </select>
+            
+            <button
+              onClick={() => setFilters(prev => ({ 
+                ...prev, 
+                sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc' 
+              }))}
+              className="btn btn-icon"
+            >
+              {filters.sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg p-6">
@@ -285,9 +571,9 @@ export function Reports() {
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => setReportType('pilgrims')}
+                onClick={() => setReportType('pilgrim_groups')}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border ${
-                  reportType === 'pilgrims' 
+                  reportType === 'pilgrim_groups' 
                     ? 'border-primary-500 bg-primary-50 text-primary-700' 
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
@@ -330,10 +616,10 @@ export function Reports() {
               onChange={(e) => setDateRange(e.target.value as DateRange)}
               className="input"
             >
-              <option value="today">اليوم</option>
-              <option value="week">آخر أسبوع</option>
-              <option value="month">آخر شهر</option>
-              <option value="custom">تخصيص</option>
+              <option value="today">{t('reports.filters.today')}</option>
+              <option value="week">{t('reports.filters.week')}</option>
+              <option value="month">{t('reports.filters.month')}</option>
+              <option value="custom">{t('reports.filters.custom')}</option>
             </select>
           </div>
 
@@ -379,37 +665,19 @@ export function Reports() {
 
       {/* عرض نتائج التقرير */}
       {data.length > 0 && (
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {Object.keys(data[0]).map((key) => (
-                    <th
-                      key={key}
-                      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      {key}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.map((row, index) => (
-                  <tr key={index}>
-                    {Object.values(row).map((value: any, i) => (
-                      <td
-                        key={i}
-                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                      >
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="bg-white shadow-sm rounded-lg overflow-hidden p-6">
+          <Table
+            data={data}
+            columns={Object.keys(data[0]).map(key => ({
+              id: key,
+              header: () => <span>{key}</span>,
+              accessorKey: key,
+              cell: info => {
+                const value = info.getValue()
+                return typeof value === 'object' ? JSON.stringify(value) : String(value)
+              }
+            }))}
+          />
         </div>
       )}
 
@@ -446,40 +714,7 @@ export function Reports() {
 
           <div className="w-full overflow-x-auto">
             <div className="min-w-[600px] h-[400px]">
-              {chartType === 'bar' ? (
-                <BarChart
-                  width={600}
-                  height={400}
-                  data={prepareChartData()}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#8884d8" />
-                </BarChart>
-              ) : (
-                <PieChart width={600} height={400}>
-                  <Pie
-                    data={prepareChartData()}
-                    cx={300}
-                    cy={200}
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={160}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {prepareChartData().map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              )}
+              {renderChart()}
             </div>
           </div>
         </div>
@@ -500,16 +735,6 @@ export function Reports() {
                 <div className="text-2xl font-semibold text-gray-900">
                   {stat.value}
                 </div>
-                {stat.change && (
-                  <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                    stat.changeType === 'increase' 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
-                  }`}>
-                    {stat.changeType === 'increase' ? '↑' : '↓'}
-                    {stat.change}%
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -517,4 +742,4 @@ export function Reports() {
       )}
     </div>
   )
-} 
+}

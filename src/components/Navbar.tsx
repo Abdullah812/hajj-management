@@ -11,7 +11,8 @@ import {
   UsersIcon,
   ChevronDownIcon,
   BuildingOfficeIcon,
-  ClockIcon
+  ClockIcon,      
+  TruckIcon
 } from '@heroicons/react/24/outline'
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
@@ -21,10 +22,8 @@ import { Toast } from './Toast'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ThemeToggle } from './ThemeToggle'
 import { supabase } from '../lib/supabase'
+import clsx from 'clsx'
 
-type Profile = {
-  center_id?: string
-}
 
 function navLinkClasses({ isActive }: { isActive: boolean }) {
   return `text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 
@@ -45,6 +44,7 @@ function menuItemClasses(active: boolean) {
     transform-gpu hover:scale-[1.02]`
 }
 
+
 export function Navbar() {
   const { user, signOut } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -54,7 +54,8 @@ export function Navbar() {
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success')
   const [showConfirmSignOut, setShowConfirmSignOut] = useState(false)
-  const [profile, setProfile] = useState<{ center_id?: string }>({})
+  const [profile, setProfile] = useState<{ center_id?: number | null }>({})
+  const [, setBadgeCount] = useState(0)
 
   useEffect(() => {
     if (user) {
@@ -63,17 +64,29 @@ export function Navbar() {
         .select('center_id')
         .eq('id', user.id)
         .single()
-        .then(({ data }: { data: Profile | null }) => {
+        .then(({ data }) => {
           if (data) setProfile(data)
         })
     }
   }, [user])
+
+  useEffect(() => {
+    async function fetchBadgeCount() {
+      const { count } = await supabase
+        .from('stage_alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false)
+      setBadgeCount(count || 0)
+    }
+    fetchBadgeCount()
+  }, [])
 
   async function handleSignOut() {
     setShowConfirmSignOut(false)
     try {
       setIsLoading(true)
       await signOut()
+      window.location.href = '/login'
     } catch (error) {
       setToastMessage('حدث خطأ أثناء تسجيل الخروج')
       setToastType('error')
@@ -86,139 +99,139 @@ export function Navbar() {
   if (!user) return null;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 
-      shadow-sm hover:shadow-md transition-shadow duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <div className="flex">
-            <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center gap-3 group">
-                <img
-                  src="/images/logo.png"
-                  alt="شعار الشركة"
-                  className="h-10 w-auto transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
-                />
-                <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent transition-all duration-300 group-hover:tracking-wider">
-                  نظام إدارة النقل العام و الترددي
-                </span>
-              </Link>
+          <div className="flex items-center flex-shrink-0">
+            <Link to="/" className="flex items-center gap-2 sm:gap-3">
+              <img
+                src="/images/logo.png"
+                alt="شعار الشركة"
+                className="h-8 w-auto sm:h-10"
+              />
+              <span className="text-sm sm:text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent hidden sm:block">
+                نظام إدارة النقل الترددي
+              </span>
+            </Link>
+          </div>
+
+          <div className="hidden sm:flex sm:items-center sm:space-x-4 sm:space-x-reverse">
+            <div className="flex items-center space-x-6 space-x-reverse">
+              <NavLink to="/" className={navLinkClasses}>
+                <ChartBarIcon className="h-5 w-5 ml-1" />
+                لوحة عرض المعلومات
+              </NavLink>
+
+              {userRole === 'admin' && (
+                <NavLink to="/pilgrims" className={navLinkClasses}>
+                  <UsersIcon className="h-5 w-5 ml-1" />
+                  الحجاج
+                </NavLink>
+              )}
+
+              <NavLink to="/stages-list" className={navLinkClasses}>
+                <ClockIcon className="h-5 w-5 ml-1" />
+                المراحل المتاحة
+              </NavLink>
+
+              {(userRole === 'manager' || userRole === 'staff') && profile.center_id && (
+                <>
+                  <NavLink to={`/center-dashboard/${profile.center_id}`} className={navLinkClasses}>
+                    <BuildingOfficeIcon className="h-5 w-5 ml-1" />
+                    لوحة تحكم المركز
+                  </NavLink>
+                  <NavLink to={`/center-details/${profile.center_id}`} className={navLinkClasses}>
+                    <BuildingOfficeIcon className="h-5 w-5 ml-1" />
+                    تفاصيل المركز
+                  </NavLink>
+                </>
+              )}
+
+              <NavLink to="/buses" className={navLinkClasses}>
+                <TruckIcon className="h-5 w-5 ml-1" />
+                الباصات
+              </NavLink>
             </div>
-            
-            {user && (
-              <div className="hidden sm:flex sm:space-x-8 sm:space-x-reverse mr-8">
-                <div className="flex items-center space-x-6 space-x-reverse">
-                  <NavLink to="/" className={navLinkClasses}>
-                    <ChartBarIcon className="h-5 w-5 ml-1 transition-transform duration-200 group-hover:scale-110" />
-                    لوحة التحكم
-                  </NavLink>
-                  
-                  {userRole !== 'manager' && (
-                    <NavLink to="/pilgrims" className={navLinkClasses}>
-                      <UsersIcon className="h-5 w-5 ml-1" />
-                      الحجاج
-                    </NavLink>
-                  )}
 
-                  <NavLink to="/stages-list" className={navLinkClasses}>
-                    <ClockIcon className="h-5 w-5 ml-1" />
-                    المراحل المتاحة
-                  </NavLink>
+            <Menu as="div" className="relative">
+              <Menu.Button className="text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium border-b-2 border-transparent inline-flex items-center">
+                <Cog6ToothIcon className="h-5 w-5 ml-1" />
+                الإدارة
+                <ChevronDownIcon className="h-4 w-4 mr-1" />
+              </Menu.Button>
 
-                  {userRole === 'manager' && (
-                    <>
-                      <NavLink to={`/center-dashboard/${profile.center_id}`} className={navLinkClasses}>
-                        <BuildingOfficeIcon className="h-5 w-5 ml-1" />
-                        لوحة تحكم المركز
-                      </NavLink>
-                      <NavLink to={`/center-details/${profile.center_id}`} className={navLinkClasses}>
-                        <BuildingOfficeIcon className="h-5 w-5 ml-1" />
-                        تفاصيل المركز
-                      </NavLink>
-                    </>
-                  )}
-                </div>
-
-                <Menu as="div" className="relative">
-                  <Menu.Button className="text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium border-b-2 border-transparent inline-flex items-center">
-                    <Cog6ToothIcon className="h-5 w-5 ml-1" />
-                    الإدارة
-                    <ChevronDownIcon className="h-4 w-4 mr-1" />
-                  </Menu.Button>
-
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-200"
-                    enterFrom="opacity-0 translate-y-1"
-                    enterTo="opacity-100 translate-y-0"
-                    leave="transition ease-in duration-150"
-                    leaveFrom="opacity-100 translate-y-0"
-                    leaveTo="opacity-0 translate-y-1"
-                  >
-                    <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transform perspective-1200 hover:perspective-none transition-all duration-200">
-                      <div className="py-1">
-                        {isAdmin && (
-                          <>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link to="/centers" className={menuItemClasses(active)}>
-                                  <BuildingOfficeIcon className="h-5 w-5 ml-2" />
-                                  إدارة المراكز
-                                </Link>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link to="/users" className={menuItemClasses(active)}>
-                                  <UsersIcon className="h-5 w-5 ml-2" />
-                                  إدارة المستخدمين
-                                </Link>
-                              )}
-                            </Menu.Item>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="py-1">
-                        {userRole !== 'manager' && (
-                          <Menu.Item>
-                            {({ active }) => (
-                              <Link to="/stages" className={menuItemClasses(active)}>
-                                <ClockIcon className="h-5 w-5 ml-2" />
-                                إدارة المراحل
-                              </Link>
-                            )}
-                          </Menu.Item>
-                        )}
-
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="opacity-0 translate-y-1"
+                enterTo="opacity-100 translate-y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="opacity-100 translate-y-0"
+                leaveTo="opacity-0 translate-y-1"
+              >
+                <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transform perspective-1200 hover:perspective-none transition-all duration-200">
+                  <div className="py-1">
+                    {isAdmin && (
+                      <>
                         <Menu.Item>
                           {({ active }) => (
-                            <Link to="/reports" className={menuItemClasses(active)}>
-                              <ChartBarIcon className="h-5 w-5 ml-2" />
-                              التقارير
+                            <Link to="/centers" className={menuItemClasses(active)}>
+                              <BuildingOfficeIcon className="h-5 w-5 ml-2" />
+                              إدارة المراكز
                             </Link>
                           )}
                         </Menu.Item>
-                      </div>
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
-              </div>
-            )}
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link to="/users" className={menuItemClasses(active)}>
+                              <UsersIcon className="h-5 w-5 ml-2" />
+                              إدارة المستخدمين
+                            </Link>
+                          )}
+                        </Menu.Item>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="py-1">
+                    {userRole === 'admin' && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <Link to="/stages" className={menuItemClasses(active)}>
+                            <ClockIcon className="h-5 w-5 ml-2" />
+                            إدارة المراحل
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    )}
+
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link to="/reports" className={menuItemClasses(active)}>
+                          <ChartBarIcon className="h-5 w-5 ml-2" />
+                          التقارير
+                        </Link>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
           </div>
 
-          <div className="flex items-center gap-4">
-            <ThemeToggle className="transition-transform duration-200 hover:scale-105" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <ThemeToggle className="w-8 h-8 sm:w-10 sm:h-10" />
             {user && (
-              <NotificationsMenu className="transition-transform duration-200 hover:scale-105" />
+              <NotificationsMenu className="w-8 h-8 sm:w-10 sm:h-10" />
             )}
+            
             {user && (
               <Menu as="div" className="relative">
-                <Menu.Button className="flex items-center gap-2 text-gray-700 dark:text-gray-200 
-                  hover:text-gray-900 dark:hover:text-white rounded-full 
-                  hover:bg-gray-100 dark:hover:bg-gray-700 p-2 
-                  transition-all duration-200 transform-gpu hover:scale-105">
-                  <UserCircleIcon className="h-8 w-8" />
-                  <span className="text-sm font-medium hidden md:block">{user.email}</span>
+                <Menu.Button className="flex items-center gap-1 sm:gap-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 p-1 sm:p-2">
+                  <UserCircleIcon className="h-6 w-6 sm:h-8 sm:w-8" />
+                  <span className="text-xs sm:text-sm font-medium hidden md:block">
+                    {user.email}
+                  </span>
                 </Menu.Button>
 
                 <Transition
@@ -290,50 +303,47 @@ export function Navbar() {
                 تسجيل الدخول
               </Link>
             )}
-          </div>
 
-          <div className="sm:hidden">
             <button
               type="button"
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-200 
-                hover:text-primary-600 dark:hover:text-primary-400 
-                hover:bg-gray-100 dark:hover:bg-gray-700
-                transform-gpu transition-all duration-200 hover:scale-110"
+              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-200"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
-                <XMarkIcon className="block h-6 w-6" />
+                <XMarkIcon className="h-6 w-6" />
               ) : (
-                <Bars3Icon className="block h-6 w-6" />
+                <Bars3Icon className="h-6 w-6" />
               )}
             </button>
           </div>
         </div>
 
         <Transition
-          show={isMobileMenuOpen && !!user}
+          show={isMobileMenuOpen}
           enter="transition-all ease-out duration-300"
           enterFrom="opacity-0 -translate-y-2"
           enterTo="opacity-100 translate-y-0"
           leave="transition-all ease-in duration-200"
           leaveFrom="opacity-100 translate-y-0"
           leaveTo="opacity-0 -translate-y-2"
+          className="sm:hidden"
         >
-          <div className="sm:hidden">
-            <div className="pt-2 pb-3 space-y-1">
+          <div className="px-2 pt-2 pb-3 space-y-1 border-t dark:border-gray-700">
+            <div className="grid gap-1">
               <NavLink
                 to="/"
                 className={({ isActive }) =>
-                  `block px-3 py-2 rounded-md text-base font-medium ${
+                  clsx(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                  }`
+                      ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <ChartBarIcon className="h-5 w-5 ml-1 inline-block" />
-                لوحة التحكم
+                <ChartBarIcon className="h-5 w-5" />
+                <span>لوحة عرض المعلومات</span>
               </NavLink>
               
               {isAdmin && (
@@ -341,123 +351,147 @@ export function Navbar() {
                   <NavLink
                     to="/centers"
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-md text-base font-medium ${
+                      clsx(
+                        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                         isActive
-                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                      }`
+                          ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      )
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <BuildingOfficeIcon className="h-5 w-5 ml-1 inline-block" />
-                    إدارة المراكز
+                    <BuildingOfficeIcon className="h-5 w-5" />
+                    <span>إدارة المراكز</span>
                   </NavLink>
-                  
                   <NavLink
                     to="/users"
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-md text-base font-medium ${
+                      clsx(
+                        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                         isActive
-                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                      }`
+                          ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      )
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <UsersIcon className="h-5 w-5 ml-1 inline-block" />
-                    إدارة المستخدمين
+                    <UsersIcon className="h-5 w-5" />
+                    <span>إدارة المستخدمين</span>
                   </NavLink>
                 </>
               )}
               
-              {userRole !== 'manager' && (
+              {userRole === 'admin' && (
                 <NavLink
                   to="/pilgrims"
                   className={({ isActive }) =>
-                    `block px-3 py-2 rounded-md text-base font-medium ${
+                    clsx(
+                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                    }`
+                        ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    )
                   }
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  الحجاج
+                  <UsersIcon className="h-5 w-5" />
+                  <span>الحجاج</span>
                 </NavLink>
               )}
               
-              {userRole === 'manager' && (
+              {(userRole === 'manager' || userRole === 'staff') && profile.center_id && (
                 <>
                   <NavLink
                     to={`/center-dashboard/${profile.center_id}`}
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-md text-base font-medium ${
+                      clsx(
+                        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                         isActive
-                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                      }`
+                          ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      )
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <BuildingOfficeIcon className="h-5 w-5 ml-1" />
-                    لوحة تحكم المركز
+                    <BuildingOfficeIcon className="h-5 w-5" />
+                    <span>لوحة تحكم المركز</span>
                   </NavLink>
                   <NavLink
                     to={`/center-details/${profile.center_id}`}
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-md text-base font-medium ${
+                      clsx(
+                        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                         isActive
-                          ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                      }`
+                          ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      )
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <BuildingOfficeIcon className="h-5 w-5 ml-1" />
-                    تفاصيل المركز
+                    <BuildingOfficeIcon className="h-5 w-5" />
+                    <span>تفاصيل المركز</span>
                   </NavLink>
                 </>
               )}
               <NavLink
                 to="/stages"
                 className={({ isActive }) =>
-                  `block px-3 py-2 rounded-md text-base font-medium ${
+                  clsx(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                  }`
+                      ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                المراحل
+                <ClockIcon className="h-5 w-5" />
+                <span>المراحل</span>
               </NavLink>
               <NavLink
                 to="/stages-list"
                 className={({ isActive }) =>
-                  `block px-3 py-2 rounded-md text-base font-medium ${
+                  clsx(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                  }`
+                      ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <ClockIcon className="h-5 w-5 ml-1" />
-                المراحل المتاحة
+                <ClockIcon className="h-5 w-5" />
+                <span>المراحل المتاحة</span>
               </NavLink>
               <NavLink
                 to="/reports"
                 className={({ isActive }) =>
-                  `block px-3 py-2 rounded-md text-base font-medium ${
+                  clsx(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                  }`
+                      ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <ChartBarIcon className="h-5 w-5 ml-1" />
-                التقارير
+                <ChartBarIcon className="h-5 w-5" />
+                <span>التقارير</span>
+              </NavLink>
+              <NavLink
+                to="/buses"
+                className={({ isActive }) =>
+                  clsx(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )
+                }
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <TruckIcon className="h-5 w-5" />
+                <span>الباصات</span>
               </NavLink>
             </div>
           </div>

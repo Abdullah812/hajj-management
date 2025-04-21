@@ -12,12 +12,9 @@ export function Login() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // التحقق من وجود مستخدم
     if (user) {
       navigate('/dashboard');
     }
-    // مسح أي بيانات سابقة
-    localStorage.removeItem('user');
   }, [user, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -27,8 +24,9 @@ export function Login() {
 
     try {
       await signIn(email, password)
-      navigate('/')
+      // التوجيه سيتم من خلال useEffect
     } catch (error: any) {
+      console.error('Login error:', error);
       setError(error.message || 'حدث خطأ أثناء تسجيل الدخول')
     } finally {
       setLoading(false)

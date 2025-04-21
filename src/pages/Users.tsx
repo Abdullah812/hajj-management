@@ -345,14 +345,48 @@ export function Users() {
     const [role, setRole] = useState('staff');
     const [isLoading, setIsLoading] = useState(false);
 
+    // تحديد ما إذا كان يجب إظهار حقل اختيار المركز
+    const shouldShowCenterField = role === 'staff' || role === 'manager';
+
     const onSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsLoading(true);
+      
       try {
-        await handleSubmit(e);
+        const formData = new FormData(e.target as HTMLFormElement);
+        const email = formData.get('email') as string;
+        const fullName = formData.get('full_name') as string;
+        const role = formData.get('role') as string;
+        const centerId = (role === 'staff' || role === 'manager') ? formData.get('center_id') as string : null;
+
+        const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: Math.random().toString(36).slice(-8),
+          email_confirm: true,
+          user_metadata: { full_name: fullName }
+        });
+
+        if (signUpError) throw signUpError;
+        if (!user) throw new Error('فشل إنشاء المستخدم');
+
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email,
+            full_name: fullName,
+            role,
+            center_id: centerId
+          });
+
+        if (profileError) throw profileError;
+        
+        alert('تم إضافة المستخدم بنجاح');
         setSelectedUser(null);
-      } catch (error) {
+        fetchUsers();
+      } catch (error: any) {
         console.error('Error:', error);
+        alert(error.message || 'حدث خطأ أثناء إضافة المستخدم');
       } finally {
         setIsLoading(false);
       }
@@ -418,7 +452,8 @@ export function Users() {
               </select>
             </div>
 
-            {role === 'manager' && (
+            {/* إضافة حقل اختيار المركز إذا كان الدور موظف أو مشرف */}
+            {shouldShowCenterField && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   المركز
@@ -816,6 +851,7 @@ export async function handleUserApproval(userId: string, approve: boolean) {
     alert(`حدث خطأ: ${error.message}`);
   }
 }
+
 function fetchUsers() {
   throw new Error('Function not implemented.')
 }
